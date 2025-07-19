@@ -9,7 +9,12 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
     
-    # Firebase
+    # Twilio
+    TWILIO_ACCOUNT_SID: str
+    TWILIO_AUTH_TOKEN: str
+    TWILIO_MESSAGING_SERVICE_SID: str
+    
+    # Firebase (Google OAuth & Push Notifications)
     FIREBASE_CREDENTIALS_PATH: str
     FIREBASE_PROJECT_ID: str
     

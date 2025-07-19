@@ -6,8 +6,8 @@
 
 ### **What We're Building**
 - **FastAPI Backend** with authentication endpoints
-- **Firebase Phone Authentication** with OTP verification
-- **Firebase Google OAuth** integration
+- **Twilio SMS Authentication** with OTP verification
+- **Firebase Google OAuth** integration and push notifications
 - **Minimal User Profile** (first name, last name, age, gender, country)
 - **PostgreSQL Database** with user tables
 - **Basic API Documentation** with Swagger/OpenAPI
@@ -26,7 +26,9 @@
 
 - **Backend**: FastAPI (Python 3.11+)
 - **Database**: PostgreSQL 15+
-- **Authentication**: Firebase Admin SDK
+- **SMS Service**: Twilio API
+- **Authentication**: Firebase Admin SDK (Google OAuth only)
+- **Push Notifications**: Firebase Cloud Messaging (FCM)
 - **Environment**: Python virtual environment
 - **Documentation**: Swagger UI (built-in with FastAPI)
 - **Testing**: pytest (basic API tests only)
@@ -179,12 +181,12 @@ CREATE INDEX idx_users_country ON users(country);
 ```
 1. POST /auth/phone/send-otp
    - Input: phone_number
-   - Firebase sends OTP via SMS
+   - Twilio sends OTP via SMS
    - Return: success/failure status
 
 2. POST /auth/phone/verify-otp
    - Input: phone_number, otp_code
-   - Firebase verifies OTP
+   - Twilio verifies OTP
    - If valid: Create/login user, return JWT token
    - If new user: profile_completed = false
 
@@ -281,6 +283,8 @@ pydantic-settings==2.1.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 firebase-admin==6.4.0
+twilio==8.10.0
+redis==5.0.1
 python-multipart==0.0.6
 pytest==7.4.3
 pytest-asyncio==0.21.1
@@ -309,10 +313,15 @@ GRANT ALL ON SCHEMA public TO imaro_user;
 # Create .env file
 cat > .env << EOF
 # Database
-DATABASE_URL=postgresql://imaro_user:imaro_pass@localhost:5432/ImaroDb
+DATABASE_URL=postgresql://imaro_user:imaro_pass@localhost:5432/imarodb
 
-# Firebase
-FIREBASE_CREDENTIALS_PATH=path/to/firebase-admin-sdk.json
+# Twilio Configuration
+TWILIO_ACCOUNT_SID=your-twilio-account-sid
+TWILIO_AUTH_TOKEN=your-twilio-auth-token
+TWILIO_MESSAGING_SERVICE_SID=your-messaging-service-sid
+
+# Firebase Configuration (Google OAuth & Push Notifications)
+FIREBASE_CREDENTIALS_PATH=firebase-admin-sdk.json
 FIREBASE_PROJECT_ID=your-firebase-project-id
 
 # JWT
@@ -328,19 +337,32 @@ VERSION=1.0.0
 EOF
 ```
 
-### **4. Firebase Setup**
+### **4. Twilio Setup**
+```bash
+# 1. Go to Twilio Console (https://console.twilio.com)
+# 2. Create account or login
+# 3. Get Account SID and Auth Token from dashboard
+# 4. Create a Messaging Service:
+#    - Go to Messaging > Services
+#    - Create new service
+#    - Add a sender (phone number or alphanumeric ID)
+# 5. Update TWILIO_* variables in .env
+```
+
+### **5. Firebase Setup**
 ```bash
 # 1. Go to Firebase Console (https://console.firebase.google.com)
 # 2. Create new project or use existing
 # 3. Enable Authentication
-# 4. Enable Phone and Google sign-in methods
-# 5. Go to Project Settings > Service Accounts
-# 6. Generate new private key
-# 7. Download JSON file and save as firebase-admin-sdk.json
-# 8. Update FIREBASE_CREDENTIALS_PATH in .env
+# 4. Enable Google sign-in method only (no phone auth needed)
+# 5. Enable Cloud Messaging for push notifications
+# 6. Go to Project Settings > Service Accounts
+# 7. Generate new private key
+# 8. Download JSON file and save as firebase-admin-sdk.json
+# 9. Update FIREBASE_CREDENTIALS_PATH in .env
 ```
 
-### **5. Initialize Alembic**
+### **6. Initialize Alembic**
 ```bash
 # Initialize Alembic
 alembic init alembic

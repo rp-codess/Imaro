@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.core.security import create_access_token, create_refresh_token, verify_token
 from app.services.firebase_service import firebase_service
+from app.services.twilio_service import twilio_service
 from app.services.user_service import user_service
 from app.schemas.user import UserCreate
 from app.schemas.auth import AuthResponse
@@ -11,18 +12,19 @@ import uuid
 class AuthService:
     
     async def send_phone_otp(self, phone_number: str) -> dict:
-        """Send OTP to phone number"""
-        return await firebase_service.send_verification_code(phone_number)
+        """Send OTP to phone number using Twilio"""
+        return await twilio_service.send_otp_sms(phone_number)
     
     async def verify_phone_otp(self, db: Session, phone_number: str, otp_code: str) -> AuthResponse:
         """Verify phone OTP and authenticate user"""
-        # Verify OTP with Firebase
-        verification_result = await firebase_service.verify_phone_otp(phone_number, otp_code)
+        # Verify OTP with Twilio service
+        verification_result = twilio_service.verify_otp(phone_number, otp_code)
         
         if not verification_result["success"]:
             raise ValueError(verification_result["message"])
         
-        firebase_uid = verification_result["firebase_uid"]
+        # Create a unique firebase_uid for phone users
+        firebase_uid = f"phone_{phone_number.replace('+', '')}"
         
         # Check if user exists
         user = user_service.get_user_by_firebase_uid(db, firebase_uid)
@@ -33,11 +35,13 @@ class AuthService:
                 firebase_uid=firebase_uid,
                 auth_method="phone",
                 phone_number=phone_number,
-                first_name="",  # Will be completed later
-                last_name="",   # Will be completed later
-                country="",     # Will be completed later
+                first_name="User",  # Temporary name until profile completion
+                last_name="Name",   # Temporary name until profile completion
+                country="USA",      # Default country until profile completion
             )
             user = user_service.create_user(db, user_data)
+            # Mark phone as verified since OTP was successful
+            user.is_phone_verified = True
         
         # Update last login
         user.last_login_at = datetime.utcnow()
@@ -81,9 +85,9 @@ class AuthService:
                 firebase_uid=firebase_uid,
                 auth_method="google",
                 email=email,
-                first_name=first_name,
-                last_name=last_name,
-                country="",  # Will be completed later
+                first_name=first_name if first_name else "User",
+                last_name=last_name if last_name else "Name",
+                country="USA",  # Default until profile completion
             )
             user = user_service.create_user(db, user_data)
         
